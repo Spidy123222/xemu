@@ -95,7 +95,7 @@ package_linux() {
 
 postbuild=''
 debug_opts=''
-build_cflags='-march=x86-64-v3'
+build_cflags=''
 default_job_count='12'
 sys_ldflags=''
 
