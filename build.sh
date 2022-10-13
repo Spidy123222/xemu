@@ -241,7 +241,9 @@ case "$platform" in # Adjust compilation options based on platform
         ;;
     CYGWIN*|MINGW*|MSYS*)
         echo 'Compiling for Windows...'
-        sys_cflags='-Wno-error'
+        sys_cflags='-Wno-error \
+                    -march=x86-64-v3 \
+                    -mavx'
         opts="$opts --disable-fortify-source"
         postbuild='package_windows' # set the above function to be called after build
         target="qemu-system-i386w.exe"
