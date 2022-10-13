@@ -164,17 +164,17 @@ done
 
 target="qemu-system-i386"
 if test ! -z "$debug"; then
-    build_cflags='-DXEMU_DEBUG_BUILD=1 -march=x86-64-v3'
-    opts="--enable-debug --enable-trace-backends=log"
+    build_cflags='-DXEMU_DEBUG_BUILD=1'
+    opts="--enable-debug --enable-trace-backends=log -march=x86-64-v3"
 else
-    opts="--enable-lto"
+    opts="--enable-lto -march=x86-64-v3"
 fi
 
 
 case "$platform" in # Adjust compilation options based on platform
     Linux)
         echo 'Compiling for Linux...'
-        sys_cflags='-Wno-error=redundant-decls'
+        sys_cflags='-Wno-error=redundant-decls -march=x86-64-v3'
         opts="$opts --disable-werror"
         postbuild='package_linux'
         ;;
@@ -241,7 +241,7 @@ case "$platform" in # Adjust compilation options based on platform
         ;;
     CYGWIN*|MINGW*|MSYS*)
         echo 'Compiling for Windows...'
-        sys_cflags='-Wno-error'
+        sys_cflags='-Wno-error -march=x86-64-v3'
         opts="$opts --disable-fortify-source"
         postbuild='package_windows' # set the above function to be called after build
         target="qemu-system-i386w.exe"
@@ -249,7 +249,7 @@ case "$platform" in # Adjust compilation options based on platform
     win64-cross)
         echo 'Cross-compiling for Windows...'
         export AR=${AR:-$CROSSAR}
-        sys_cflags='-Wno-error'
+        sys_cflags='-Wno-error -march=x86-64-v3'
         opts="$opts --cross-prefix=$CROSSPREFIX --static --disable-fortify-source"
         postbuild='package_wincross' # set the above function to be called after build
         target="qemu-system-i386w.exe"
