@@ -529,7 +529,7 @@ uint64_t cpu_get_tsc(CPUX86State *env)
     float PERCENTAGE_OUTPUT = OVERCLOCK_VALUE / 100;
     
     if (!g_config.perf.override_clockspeed) {
-        float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_VALUE;
+        float clockOutput = DEFAULT_CPU_CLOCK * PERCENTAGE_OUTPUT;
     }
     
     
