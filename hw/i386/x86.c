@@ -530,7 +530,7 @@ uint64_t cpu_get_tsc(CPUX86State *env)
         float percentageRemainder = OVERCLOCK_PERCENTAGE / 100;
         float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_PERCENTAGE;
         
-    } else 
+    } else {
         float clockOutput = DEFAULT_CPU_CLOCK;
     
     }
