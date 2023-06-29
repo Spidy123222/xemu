@@ -67,7 +67,7 @@ void MainMenuGeneralView::Draw()
     
     char buf[32];
     snprintf(buf, sizeof(buf), "Clock Speed (%d%%)",
-             (int)(g_config.perf.cpu_clockspeed * 400));
+             (int)(g_config.perf.cpu_clockspeed * 200));
     Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, buf);
 
     
