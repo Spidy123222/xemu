@@ -527,17 +527,17 @@ uint64_t cpu_get_tsc(CPUX86State *env)
 {
 #ifdef XBOX
     int DEFAULT_CPU_CLOCK = 733333333; /* 733333333 hz */
-    float clockOutput = DEFAULT_CPU_CLOCK;
+    float clockOutput;
     float OVERCLOCK_VALUE = g_config.perf.cpu_clockspeed; /* 100 is 100% */
     float PERCENTAGE_OUTPUT = OVERCLOCK_VALUE / 100;
     
     if (g_config.perf.override_clockspeed) {
         float clockOutput = DEFAULT_CPU_CLOCK * PERCENTAGE_OUTPUT;
+        return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), clockOutput, NANOSECONDS_PER_SECOND);
+    } else {
+        float clockOutput = DEFAULT_CPU_CLOCK;
+        return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), clockOutput, NANOSECONDS_PER_SECOND);
     }
-    
-    
-    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), clockOutput,
-                    NANOSECONDS_PER_SECOND);
 #else
     return cpus_get_elapsed_ticks();
 #endif
