@@ -56,6 +56,8 @@
 #include CONFIG_DEVICES
 #include "kvm/kvm_i386.h"
 
+extern struct config g_config;
+
 /* Physical Address of PVH entry point read from kernel ELF NOTE */
 static size_t pvh_start_addr;
 
