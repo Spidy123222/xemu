@@ -523,10 +523,18 @@ static long get_file_size(FILE *f)
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
 #ifdef XBOX
-    float OVERCLOCK_PERCENTAGE = 100; /* 100 is 100% */
-    float percentageRemainder = OVERCLOCK_PERCENTAGE / 100;
     int DEFAULT_CPU_CLOCK = 733333333; /* 733333333 hz */
-    float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_PERCENTAGE;
+    float OVERCLOCK_PERCENTAGE = 100; /* 100 is 100% */
+    
+    if (g_config.perf.override_clockspeed) {
+        float percentageRemainder = OVERCLOCK_PERCENTAGE / 100;
+        float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_PERCENTAGE;
+        
+    } else 
+        float clockOutput = DEFAULT_CPU_CLOCK;
+    
+    }
+    
     
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), clockOutput,
                     NANOSECONDS_PER_SECOND);
