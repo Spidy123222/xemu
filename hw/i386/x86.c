@@ -524,15 +524,13 @@ uint64_t cpu_get_tsc(CPUX86State *env)
 {
 #ifdef XBOX
     int DEFAULT_CPU_CLOCK = 733333333; /* 733333333 hz */
-    float OVERCLOCK_PERCENTAGE = g_config.perf.cpu_clockspeed; /* 100 is 100% */
+    float clockOutput = DEFAULT_CPU_CLOCK;
+    float OVERCLOCK_VALUE = g_config.perf.cpu_clockspeed; /* 100 is 100% */
     
     if (g_config.perf.override_clockspeed) {
-        float percentageRemainder = OVERCLOCK_PERCENTAGE / 100;
-        float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_PERCENTAGE;
+        float PERCENTAGE_OUTPUT = OVERCLOCK_PERCENTAGE / 100;
+        float clockOutput = DEFAULT_CPU_CLOCK * OVERCLOCK_VALUE;
         
-    } else {
-        float clockOutput = DEFAULT_CPU_CLOCK;
-    
     }
     
     
