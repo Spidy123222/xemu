@@ -66,8 +66,8 @@ void MainMenuGeneralView::Draw()
            "Enables to override default CPU clock speed");
     
     char buf[32];
-    snprintf(buf, sizeof(buf), "Clock Speed (%d%%)",
-             (int)(g_config.perf.cpu_clockspeed * 200));
+    snprintf(buf, sizeof(buf), "Clock Speed %d%% (%f MHz)",
+             (int)(g_config.perf.cpu_clockspeed * 200), ceil((733333333.0 * g_config.perf.cpu_clockspeed * 2.0)/1000000));
     Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, buf);
 
     
