@@ -66,9 +66,9 @@ void MainMenuGeneralView::Draw()
            "Enables to override default CPU clock speed");
     
     char buf[32];
-    float min* = 0;
-    float max* = 2;
-    float gpspeed* = 0.025;
+    float min = 0;
+    float max = 2;
+    float gpspeed = 0.025;
 
     
     snprintf(buf, sizeof(buf), "Clock Speed %d%% (%.2f MHz)", (int)(g_config.perf.cpu_clockspeed * 200), (733333333 * g_config.perf.cpu_clockspeed)/1000000);
