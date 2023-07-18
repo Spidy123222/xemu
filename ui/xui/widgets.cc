@@ -222,7 +222,7 @@ bool Toggle(const char *str_id, bool *v, const char *description)
     return status;
 }
 
-void Slider(const char *str_id, float *v, const char *description, float *min, float *max, float *gpspeed)
+void Slider(const char *str_id, float *v, const char *description, float *min = 0, float *max = 1, float *gpspeed = 0.05)
 {
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);
 
