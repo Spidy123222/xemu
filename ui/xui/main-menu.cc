@@ -70,7 +70,7 @@ void MainMenuGeneralView::Draw()
 
     
     snprintf(buf, sizeof(buf), "Clock Speed %d%% (%.2f MHz)", (int)(g_config.perf.cpu_clockspeed * 200), (733333333 * g_config.perf.cpu_clockspeed)/1000000);
-    Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, buf , 0f, 2f, 0.025f);
+    Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, buf , 0, 2, 0.025);
 
     if ((g_config.perf.cpu_clockspeed-0.495)*(g_config.perf.cpu_clockspeed-0.505) <= 0) {g_config.perf.cpu_clockspeed = 0.5;}
     
@@ -368,7 +368,7 @@ void MainMenuAudioView::Draw()
     char buf[32];
     snprintf(buf, sizeof(buf), "Limit output volume (%d%%)",
              (int)(g_config.audio.volume_limit * 100));
-    Slider("Output volume limit", &g_config.audio.volume_limit, buf, 0f, 1f, 0.05f);
+    Slider("Output volume limit", &g_config.audio.volume_limit, buf);
 
     SectionTitle("Quality");
     Toggle("Real-time DSP processing", &g_config.audio.use_dsp,
