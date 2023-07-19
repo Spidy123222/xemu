@@ -74,7 +74,7 @@ void MainMenuGeneralView::Draw()
     snprintf(buf, sizeof(buf), "Clock Speed %d%% (%.2f MHz)", (int)(g_config.perf.cpu_clockspeed * 100), (733333333 * g_config.perf.cpu_clockspeed)/1000000);
     Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, min , max, gpspeed, buf);
 
-    if ((g_config.perf.cpu_clockspeed-0.495)*(g_config.perf.cpu_clockspeed-0.505) <= 0) {g_config.perf.cpu_clockspeed = 0.5;}
+    if ((g_config.perf.cpu_clockspeed-0.99)*(g_config.perf.cpu_clockspeed-1.01) <= 0) {g_config.perf.cpu_clockspeed = 1;}
     
     SectionTitle("Miscellaneous");
     Toggle("Skip startup animation", &g_config.general.skip_boot_anim,
