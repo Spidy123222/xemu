@@ -261,13 +261,13 @@ void Slider(const char *str_id, float *v, float min = 0.0f, float max = 1.0f, fl
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickLeft)) {
-                *v -= *gpspeed;
+                *v -= gpspeed;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickRight)) {
-                *v += *gpspeed;
+                *v += gpspeed;
         }
 
         if (
@@ -288,7 +288,7 @@ void Slider(const char *str_id, float *v, float min = 0.0f, float max = 1.0f, fl
         ImVec2 mouse = ImGui::GetMousePos();
         *v = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
     }
-    *v = fmax(*min, fmin(*v, *max));
+    *v = fmax(min, fmin(*v, max));
     DrawSlider(*v, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
