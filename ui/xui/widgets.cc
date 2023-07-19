@@ -262,13 +262,13 @@ void Slider(const char *str_id, float *v, float min, float max, float gpspeed, c
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickLeft)) {
-                *v -= gpspeed;
+                x -= gpspeed * max;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickRight)) {
-                *v += gpspeed;
+                x += gpspeed * max;
         }
 
         if (
