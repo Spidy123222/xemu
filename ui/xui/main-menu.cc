@@ -369,7 +369,7 @@ void MainMenuAudioView::Draw()
     SectionTitle("Volume");
     char buf[32];
     float min = 0;
-    float max = 2;
+    float max = 1;
     float gpspeed = 0.05;
     snprintf(buf, sizeof(buf), "Limit output volume (%d%%)",
              (int)(g_config.audio.volume_limit * 100));
