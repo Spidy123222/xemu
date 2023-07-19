@@ -68,7 +68,7 @@ void MainMenuGeneralView::Draw()
     char buf[32];
     float min = 0;
     float max = 2;
-    float gpspeed = 0.025;
+    float gpspeed = 0.005;
 
     
     snprintf(buf, sizeof(buf), "Clock Speed %d%% (%.2f MHz)", (int)(g_config.perf.cpu_clockspeed * 100), (733333333 * g_config.perf.cpu_clockspeed)/1000000);
