@@ -66,7 +66,7 @@ void MainMenuGeneralView::Draw()
            "Enables to override default CPU clock speed");
     
     char buf[32];
-    float min = 0;
+    float min = 0.01;
     float max = 2;
     float gpspeed = 0.01;
 
