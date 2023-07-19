@@ -224,8 +224,7 @@ bool Toggle(const char *str_id, bool *v, const char *description)
 
 void Slider(const char *str_id, float *v, float min, float max, float gpspeed, const char *description)
 {
-    float* maxpoint = &max;
-    float* x = *v / *maxpoint;
+    float* x = *v / max;
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);
 
     ImGuiStyle &style = ImGui::GetStyle();
@@ -291,7 +290,7 @@ void Slider(const char *str_id, float *v, float min, float max, float gpspeed, c
         *x = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
     }
     *x = fmax(0, fmin(*x, 1));
-    *v = fmax(min,fmin(*x * maxpoint,max));
+    *v = fmax(min,fmin(*x * max,max));
     DrawSlider(*x, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
