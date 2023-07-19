@@ -222,9 +222,10 @@ bool Toggle(const char *str_id, bool *v, const char *description)
     return status;
 }
 
-void Slider(const char *str_id, float v, float min, float max, float gpspeed, const char *description)
+void Slider(const char *str_id, float *v, float min, float max, float gpspeed, const char *description)
 {
-    float x = v/max;
+    float* maxpoint = &max
+    float* x = *v / *maxpoint;
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);
 
     ImGuiStyle &style = ImGui::GetStyle();
@@ -262,13 +263,13 @@ void Slider(const char *str_id, float v, float min, float max, float gpspeed, co
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickLeft) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickLeft)) {
-                v -= gpspeed;
+                *v -= gpspeed;
         }
         if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadLStickRight) ||
             ImGui::IsKeyPressed(ImGuiKey_GamepadRStickRight)) {
-                v += gpspeed;
+                *v += gpspeed;
         }
 
         if (
@@ -287,11 +288,11 @@ void Slider(const char *str_id, float v, float min, float max, float gpspeed, co
     
     if (ImGui::IsItemActive()) {
         ImVec2 mouse = ImGui::GetMousePos();
-        x = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
+        *x = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
     }
-    x = fmax(0, fmin(x, 1));
-    v = fmax(min,fmin(x * max,max));
-    DrawSlider(x, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
+    *x = fmax(0, fmin(*x, 1));
+    *v = fmax(min,fmin(*x * maxpoint,max));
+    DrawSlider(*x, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
     ImVec2 slider_max = ImVec2(slider_pos.x + slider_size.x, slider_pos.y + slider_size.y);
