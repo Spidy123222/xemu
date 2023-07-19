@@ -289,11 +289,11 @@ void Slider(const char *str_id, float *v, float min, float max, float gpspeed, c
         *v = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
     }
     *v = fmax(min, fmin(*v, max));
-    DrawSlider(*v, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
+    DrawSlider((*v / max), ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
     ImVec2 slider_max = ImVec2(slider_pos.x + slider_size.x, slider_pos.y + slider_size.y);
-    ImGui::RenderNavHighlight(ImRect(slider_pos, (slider_max / max)), window->GetID("###slider"));
+    ImGui::RenderNavHighlight(ImRect(slider_pos, slider_max, window->GetID("###slider"));
 
     ImGui::PopStyleColor();
 }
