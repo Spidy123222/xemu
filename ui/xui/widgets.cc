@@ -287,11 +287,11 @@ void Slider(const char *str_id, float *v, float min, float max, float gpspeed, c
     
     if (ImGui::IsItemActive()) {
         ImVec2 mouse = ImGui::GetMousePos();
-        *x = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
+        x = GetSliderValueForMousePos(mouse, slider_pos, slider_size);
     }
-    *x = fmax(0, fmin(*x, 1));
-    *v = fmax(min,fmin(*x * max,max));
-    DrawSlider(*x, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
+    x = fmax(0, fmin(x, 1));
+    *v = fmax(min,fmin(x * max,max));
+    DrawSlider(x, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
     ImVec2 slider_max = ImVec2(slider_pos.x + slider_size.x, slider_pos.y + slider_size.y);
