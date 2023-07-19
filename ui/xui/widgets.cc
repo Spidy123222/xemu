@@ -288,7 +288,7 @@ void Slider(const char *str_id, float *v, float min, float max, float gpspeed, c
         ImVec2 mouse = ImGui::GetMousePos();
         *v = GetSliderValueForMousePos(mouse, slider_pos, slider_size)/max;
     }
-    *v = fmax(0, fmin(*v, 1));
+    *v = fmax(min, fmin(*v, max));
     DrawSlider(*v, ImGui::IsItemHovered() || ImGui::IsItemActive(), slider_pos,
                slider_size);
 
