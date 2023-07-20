@@ -365,7 +365,7 @@ void MainMenuAudioView::Draw()
     char buf[32];
     snprintf(buf, sizeof(buf), "Limit output volume (%d%%)",
              (int)(g_config.audio.volume_limit * 100));
-    Slider("Output volume limit", &g_config.audio.volume_limit, buf, 0.f, 1.0f, 0.05f);
+    Slider("Output volume limit", &g_config.audio.volume_limit, buf);
 
     SectionTitle("Quality");
     Toggle("Real-time DSP processing", &g_config.audio.use_dsp,
