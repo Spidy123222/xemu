@@ -22,6 +22,7 @@
 #include "viewport-manager.hh"
 #include "ui/xemu-os-utils.h"
 #include "gl-helpers.hh"
+#include <algorithm>
 
 void Separator()
 {
