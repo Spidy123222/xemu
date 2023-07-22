@@ -69,7 +69,7 @@ void MainMenuGeneralView::Draw()
     snprintf(buf, sizeof(buf), "Clock Speed %d%% (%.2f MHz)", (int)(g_config.perf.cpu_clockspeed * 100), (733333333 * g_config.perf.cpu_clockspeed)/1000000);
     Slider("Virtual CPU clock", &g_config.perf.cpu_clockspeed, buf, 0.01f, 2.f, 0.01f);
 
-    if (std::fabs(g_config.perf.cpu_clockspeed - 1.f) <= 0.009f) {
+    if (fabs(g_config.perf.cpu_clockspeed - 1.f) <= 0.009f) {
         g_config.perf.cpu_clockspeed = 1;
     }
     
