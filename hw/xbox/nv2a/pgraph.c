@@ -5579,6 +5579,7 @@ static void pgraph_surface_invalidate(NV2AState *d, SurfaceBinding *surface)
     }
 
     glDeleteTextures(1, &surface->gl_buffer);
+    glDeleteBuffers(1, &surface->pbo_id);
 
     QTAILQ_REMOVE(&d->pgraph.surfaces, surface, entry);
     g_free(surface);
@@ -5716,18 +5717,38 @@ static void pgraph_download_surface_data_to_buffer(NV2AState *d,
         gl_read_buf = swizzle_buf;
     }
 
+    size_t buffer_size = pg->surface_scale_factor * pg->surface_scale_factor * surface->size;
     if (downscale) {
         pg->scale_buf = (uint8_t *)g_realloc(
-            pg->scale_buf, pg->surface_scale_factor * pg->surface_scale_factor *
-                               surface->size);
+            pg->scale_buf, buffer_size);
         gl_read_buf = pg->scale_buf;
     }
 
-    glo_readpixels(
-        surface->fmt.gl_format, surface->fmt.gl_type, surface->fmt.bytes_per_pixel,
-        pg->surface_scale_factor * surface->pitch,
-        pg->surface_scale_factor * surface->width,
-        pg->surface_scale_factor * surface->height, flip, gl_read_buf);
+    if(surface->pbo_size < buffer_size) {
+        glDeleteBuffers(1, &surface->pbo_id);
+        glGenBuffers(1, &surface->pbo_id);
+        assert(surface->pbo_id);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, surface->pbo_id);
+        glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, NULL, GL_STREAM_READ);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        surface->pbo_size = buffer_size;
+    }
+
+    if(glo_requestpixels(
+            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id, 
+            surface->fmt.bytes_per_pixel,
+            pg->surface_scale_factor * surface->pitch,
+            pg->surface_scale_factor * surface->width,
+            pg->surface_scale_factor * surface->height)) {
+        glo_readpixels(
+            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+            surface->fmt.bytes_per_pixel,
+            pg->surface_scale_factor * surface->pitch,
+            pg->surface_scale_factor * surface->width,
+            pg->surface_scale_factor * surface->height, flip, gl_read_buf);
+    }
 
     /* FIXME: Replace this with a hw accelerated version */
     if (downscale) {
@@ -6028,6 +6049,8 @@ static void pgraph_populate_surface_binding_entry_sized(NV2AState *d,
     entry->shape = (color || !pg->color_binding) ? pg->surface_shape :
                                                    pg->color_binding->shape;
     entry->gl_buffer = 0;
+    entry->pbo_id = 0;
+    entry->pbo_size = 0;
     entry->fmt = fmt;
     entry->color = color;
     entry->swizzle =
