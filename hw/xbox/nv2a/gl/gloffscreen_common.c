@@ -31,7 +31,7 @@
 
 #include "gloffscreen.h"
 
-inline const char *gl_error_to_str(GLint gl_error)
+static inline const char *gl_error_to_str(GLint gl_error)
 {
     switch(gl_error) {
         case GL_NO_ERROR: return "GL_NO_ERROR";
@@ -114,6 +114,8 @@ void glo_readpixels(GLenum gl_format, GLenum gl_type, GLuint pbo_id,
                 }
                 free(tmp);
             }
+        } else {
+            fprintf(stderr, "glMapBuffer returned NULL\n");
         }
     }
 
