@@ -402,9 +402,22 @@ static void pgraph_unbind_surface(NV2AState *d, bool color);
 static void pgraph_surface_invalidate(NV2AState *d, SurfaceBinding *e);
 static void pgraph_surface_evict_old(NV2AState *d);
 static void pgraph_download_surface_data_if_dirty(NV2AState *d, SurfaceBinding *surface);
+static void pgraph_start_download_surface_data_if_dirty(NV2AState *d, SurfaceBinding *surface);
+static void pgraph_finish_download_surface_data_if_dirty(NV2AState *d, SurfaceBinding *surface);
 static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
-static void phraph_queue_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
+static void pgraph_start_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
+static void pgraph_finish_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
 static void pgraph_download_surface_data_to_buffer(NV2AState *d,
+                                                   SurfaceBinding *surface,
+                                                   bool swizzle, bool flip,
+                                                   bool downscale,
+                                                   uint8_t *pixels);
+static void pgraph_start_download_surface_data_to_buffer(NV2AState *d,
+                                                   SurfaceBinding *surface,
+                                                   bool swizzle, bool flip,
+                                                   bool downscale,
+                                                   uint8_t *pixels);
+static void pgraph_finish_download_surface_data_to_buffer(NV2AState *d,
                                                    SurfaceBinding *surface,
                                                    bool swizzle, bool flip,
                                                    bool downscale,
@@ -885,28 +898,28 @@ static void pgraph_image_blit(NV2AState *d)
 
     SurfaceBinding *surf_src = pgraph_surface_get(d, source_addr);
     if (surf_src) {
-        pgraph_download_surface_data_if_dirty(d, surf_src);
+       pgraph_start_download_surface_data_if_dirty(d, surf_src);
     }
 
     SurfaceBinding *surf_dest = pgraph_surface_get(d, dest_addr);
     if (surf_dest) {
-        if (image_blit->height < surf_dest->height ||
-            image_blit->width < surf_dest->width) {
-            pgraph_download_surface_data_if_dirty(d, surf_dest);
-        } else {
-            // The blit will completely replace the surface so any pending
-            // download should be discarded.
-            surf_dest->download_pending = false;
-            surf_dest->draw_dirty = false;
-        }
-        surf_dest->upload_pending = true;
-        pg->draw_time++;
+       if (image_blit->height < surf_dest->height ||
+           image_blit->width < surf_dest->width) {
+           pgraph_start_download_surface_data_if_dirty(d, surf_dest);
+       } else {
+           // The blit will completely replace the surface so any pending
+           // download should be discarded.
+           surf_dest->download_pending = false;
+           surf_dest->draw_dirty = false;
+       }
+       surf_dest->upload_pending = true;
+       pg->draw_time++;
     }
 
     hwaddr source_offset = image_blit->in_y * context_surfaces->source_pitch +
-                           image_blit->in_x * bytes_per_pixel;
+                          image_blit->in_x * bytes_per_pixel;
     hwaddr dest_offset = image_blit->out_y * context_surfaces->dest_pitch +
-                         image_blit->out_x * bytes_per_pixel;
+                        image_blit->out_x * bytes_per_pixel;
 
     hwaddr source_size =
         (image_blit->height - 1) * context_surfaces->source_pitch +
@@ -921,6 +934,17 @@ static void pgraph_image_blit(NV2AState *d)
 
     uint8_t *source_row = source + source_offset;
     uint8_t *dest_row = dest + dest_offset;
+
+    if(surf_src) {
+        pgraph_finish_download_surface_data_if_dirty(d, surf_src);
+    }
+
+    if (surf_dest) {
+       if (image_blit->height < surf_dest->height ||
+           image_blit->width < surf_dest->width) {
+           pgraph_finish_download_surface_data_if_dirty(d, surf_dest);
+       }
+    }
 
     if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) {
         NV2A_GL_DPRINTF(false, "NV09F_SET_OPERATION_SRCCOPY");
@@ -981,9 +1005,9 @@ static void pgraph_image_blit(NV2AState *d)
 
     dest_addr += dest_offset;
     memory_region_set_client_dirty(d->vram, dest_addr, dest_size,
-                                   DIRTY_MEMORY_VGA);
+                                  DIRTY_MEMORY_VGA);
     memory_region_set_client_dirty(d->vram, dest_addr, dest_size,
-                                   DIRTY_MEMORY_NV2A_TEX);
+                                  DIRTY_MEMORY_NV2A_TEX);
 }
 
 int pgraph_method(NV2AState *d, unsigned int subchannel,
@@ -4945,7 +4969,6 @@ static void pgraph_render_surface_to_texture_slow(
     size_t bufsize = width * height * surface->fmt.bytes_per_pixel;
 
     uint8_t *buf = g_malloc(bufsize);
-    phraph_queue_download_surface_data(d, surface, false);
     pgraph_download_surface_data_to_buffer(d, surface, false, true, false, buf);
 
     width = texture_shape->width;
@@ -5501,7 +5524,7 @@ static SurfaceBinding *pgraph_surface_put(NV2AState *d,
 
     SurfaceBinding *surface, *next;
     uintptr_t e_end = surface_in->vram_addr + surface_in->size - 1;
-    QTAILQ_FOREACH_SAFE(surface, &d->pgraph.surfaces, entry, next) {
+    QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
         uintptr_t s_end = surface->vram_addr + surface->size - 1;
         bool overlapping = !(surface->vram_addr > e_end
                              || surface_in->vram_addr > s_end);
@@ -5509,7 +5532,16 @@ static SurfaceBinding *pgraph_surface_put(NV2AState *d,
             trace_nv2a_pgraph_surface_evict_overlapping(
                 surface->vram_addr, surface->width, surface->height,
                 surface->pitch);
-            pgraph_download_surface_data_if_dirty(d, surface);
+            pgraph_start_download_surface_data_if_dirty(d, surface);
+        }
+    }
+
+    QTAILQ_FOREACH_SAFE(surface, &d->pgraph.surfaces, entry, next) {
+        uintptr_t s_end = surface->vram_addr + surface->size - 1;
+        bool overlapping = !(surface->vram_addr > e_end
+                             || surface_in->vram_addr > s_end);
+        if (overlapping) {
+            pgraph_finish_download_surface_data_if_dirty(d, surface);
             pgraph_surface_invalidate(d, surface);
         }
     }
@@ -5592,11 +5624,18 @@ static void pgraph_surface_evict_old(NV2AState *d)
     const int surface_age_limit = 5;
 
     SurfaceBinding *s, *next;
-    QTAILQ_FOREACH_SAFE(s, &d->pgraph.surfaces, entry, next) {
+    QTAILQ_FOREACH(s, &d->pgraph.surfaces, entry) {
         int last_used = d->pgraph.frame_time - s->frame_time;
         if (last_used >= surface_age_limit) {
             trace_nv2a_pgraph_surface_evict_reason("old", s->vram_addr);
-            pgraph_download_surface_data_if_dirty(d, s);
+            pgraph_start_download_surface_data_if_dirty(d, s);
+        }
+    }
+
+    QTAILQ_FOREACH_SAFE(s, &d->pgraph.surfaces, entry, next) {
+        int last_used = d->pgraph.frame_time - s->frame_time;
+        if (last_used >= surface_age_limit) {
+            pgraph_finish_download_surface_data_if_dirty(d, s);
             pgraph_surface_invalidate(d, s);
         }
     }
@@ -5628,6 +5667,22 @@ static void pgraph_download_surface_data_if_dirty(NV2AState *d,
 {
     if (surface->draw_dirty) {
         pgraph_download_surface_data(d, surface, true);
+    }
+}
+
+static void pgraph_start_download_surface_data_if_dirty(NV2AState *d,
+    SurfaceBinding *surface)
+{
+    if (surface->draw_dirty) {
+        pgraph_start_download_surface_data(d, surface, true);
+    }
+}
+
+static void pgraph_finish_download_surface_data_if_dirty(NV2AState *d,
+    SurfaceBinding *surface)
+{
+    if (surface->draw_dirty) {
+        pgraph_finish_download_surface_data(d, surface, true);
     }
 }
 
@@ -5677,6 +5732,141 @@ static void surface_copy_shrink_row(uint8_t *out, uint8_t *in,
     }
 }
 
+static void pgraph_start_download_surface_data_to_buffer(NV2AState *d,
+                                                   SurfaceBinding *surface,
+                                                   bool swizzle, bool flip,
+                                                   bool downscale,
+                                                   uint8_t *pixels)
+{
+    PGRAPHState *pg = &d->pgraph;
+    swizzle &= surface->swizzle;
+    downscale &= (pg->surface_scale_factor != 1);
+
+    trace_nv2a_pgraph_surface_download(
+        surface->color ? "COLOR" : "ZETA",
+        surface->swizzle ? "sz" : "lin", surface->vram_addr,
+        surface->width, surface->height, surface->pitch,
+        surface->fmt.bytes_per_pixel);
+
+    /*  Bind destination surface to framebuffer */
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                           0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+                           0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                           GL_TEXTURE_2D, 0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, surface->fmt.gl_attachment,
+                           GL_TEXTURE_2D, surface->gl_buffer, 0);
+
+    assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+    size_t buffer_size = pg->surface_scale_factor * pg->surface_scale_factor * surface->size;
+    if(surface->pbo_size < buffer_size) {
+        glDeleteBuffers(1, &surface->pbo_id);
+        glGenBuffers(1, &surface->pbo_id);
+        assert(surface->pbo_id);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, surface->pbo_id);
+        glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, NULL, GL_STREAM_READ);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        surface->pbo_size = buffer_size;
+    }
+
+    glo_requestpixels(
+        surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+        surface->fmt.bytes_per_pixel,
+        pg->surface_scale_factor * surface->pitch,
+        pg->surface_scale_factor * surface->width,
+        pg->surface_scale_factor * surface->height);
+
+    /* Re-bind original framebuffer target */
+    glFramebufferTexture2D(GL_FRAMEBUFFER, surface->fmt.gl_attachment,
+                           GL_TEXTURE_2D, 0, 0);
+    pgraph_bind_current_surface(d);
+}
+
+
+static void pgraph_finish_download_surface_data_to_buffer(NV2AState *d,
+                                                   SurfaceBinding *surface,
+                                                   bool swizzle, bool flip,
+                                                   bool downscale,
+                                                   uint8_t *pixels)
+{
+    PGRAPHState *pg = &d->pgraph;
+    swizzle &= surface->swizzle;
+    downscale &= (pg->surface_scale_factor != 1);
+
+    trace_nv2a_pgraph_surface_download(
+        surface->color ? "COLOR" : "ZETA",
+        surface->swizzle ? "sz" : "lin", surface->vram_addr,
+        surface->width, surface->height, surface->pitch,
+        surface->fmt.bytes_per_pixel);
+
+    /*  Bind destination surface to framebuffer */
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                           0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D,
+                           0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT,
+                           GL_TEXTURE_2D, 0, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, surface->fmt.gl_attachment,
+                           GL_TEXTURE_2D, surface->gl_buffer, 0);
+
+    assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+    /* Read surface into memory */
+    uint8_t *gl_read_buf = pixels;
+
+    uint8_t *swizzle_buf = pixels;
+    if (swizzle) {
+        /* FIXME: Allocate big buffer up front and re-alloc if necessary.
+         * FIXME: Consider swizzle in shader
+         */
+        assert(pg->surface_scale_factor == 1 || downscale);
+        swizzle_buf = (uint8_t *)g_malloc(surface->size);
+        gl_read_buf = swizzle_buf;
+    }
+
+    size_t buffer_size = pg->surface_scale_factor * pg->surface_scale_factor * surface->size;
+    if (downscale) {
+        pg->scale_buf = (uint8_t *)g_realloc(
+            pg->scale_buf, buffer_size);
+        gl_read_buf = pg->scale_buf;
+    }
+
+    glo_readpixels(
+        surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+        surface->fmt.bytes_per_pixel,
+        pg->surface_scale_factor * surface->pitch,
+        pg->surface_scale_factor * surface->width,
+        pg->surface_scale_factor * surface->height, flip, gl_read_buf);
+    
+    /* FIXME: Replace this with a hw accelerated version */
+    if (downscale) {
+        assert(surface->pitch >= (surface->width * surface->fmt.bytes_per_pixel));
+        uint8_t *out = swizzle_buf, *in = pg->scale_buf;
+        for (unsigned int y = 0; y < surface->height; y++) {
+            surface_copy_shrink_row(out, in, surface->width,
+                                    surface->fmt.bytes_per_pixel,
+                                    pg->surface_scale_factor);
+            in += surface->pitch * pg->surface_scale_factor *
+                  pg->surface_scale_factor;
+            out += surface->pitch;
+        }
+    }
+
+    if (swizzle) {
+        swizzle_rect(swizzle_buf, surface->width, surface->height, pixels,
+                     surface->pitch, surface->fmt.bytes_per_pixel);
+        g_free(swizzle_buf);
+    }
+
+    /* Re-bind original framebuffer target */
+    glFramebufferTexture2D(GL_FRAMEBUFFER, surface->fmt.gl_attachment,
+                           GL_TEXTURE_2D, 0, 0);
+    pgraph_bind_current_surface(d);
+}
 
 static void pgraph_download_surface_data_to_buffer(NV2AState *d,
                                                    SurfaceBinding *surface,
@@ -5738,12 +5928,19 @@ static void pgraph_download_surface_data_to_buffer(NV2AState *d,
         surface->pbo_size = buffer_size;
     }
 
-    glo_readpixels(
-        surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+    if(glo_requestpixels(
+        surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id, 
         surface->fmt.bytes_per_pixel,
         pg->surface_scale_factor * surface->pitch,
         pg->surface_scale_factor * surface->width,
-        pg->surface_scale_factor * surface->height, flip, gl_read_buf);
+        pg->surface_scale_factor * surface->height)) {
+        glo_readpixels(
+            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+            surface->fmt.bytes_per_pixel,
+            pg->surface_scale_factor * surface->pitch,
+            pg->surface_scale_factor * surface->width,
+            pg->surface_scale_factor * surface->height, flip, gl_read_buf);
+    }
 
     /* FIXME: Replace this with a hw accelerated version */
     if (downscale) {
@@ -5771,34 +5968,42 @@ static void pgraph_download_surface_data_to_buffer(NV2AState *d,
     pgraph_bind_current_surface(d);
 }
 
-static void phraph_queue_download_surface_data(NV2AState *d, SurfaceBinding *surface, 
+static void pgraph_start_download_surface_data(NV2AState *d, SurfaceBinding *surface,
     bool force)
 {
-    if(!(surface->download_pending || force)) {
+    if (!(surface->download_pending || force)) {
         return;
     }
 
-    PGRAPHState *pg = &d->pgraph;
+    /* FIXME: Respect write enable at last TOU? */
 
-    size_t buffer_size = pg->surface_scale_factor * pg->surface_scale_factor * surface->size;
-    if(surface->pbo_size < buffer_size) {
-        glDeleteBuffers(1, &surface->pbo_id);
-        glGenBuffers(1, &surface->pbo_id);
-        assert(surface->pbo_id);
+    pgraph_start_download_surface_data_to_buffer(
+        d, surface, true, true, true, d->vram_ptr + surface->vram_addr);
+}
 
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, surface->pbo_id);
-        glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, NULL, GL_STREAM_READ);
-        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-
-        surface->pbo_size = buffer_size;
+static void pgraph_finish_download_surface_data(NV2AState *d, SurfaceBinding *surface,
+    bool force)
+{
+    if (!(surface->download_pending || force)) {
+        return;
     }
 
-    glo_requestpixels(
-            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id, 
-            surface->fmt.bytes_per_pixel,
-            pg->surface_scale_factor * surface->pitch,
-            pg->surface_scale_factor * surface->width,
-            pg->surface_scale_factor * surface->height);
+    /* FIXME: Respect write enable at last TOU? */
+
+    nv2a_profile_inc_counter(NV2A_PROF_SURF_DOWNLOAD);
+
+    pgraph_finish_download_surface_data_to_buffer(
+        d, surface, true, true, true, d->vram_ptr + surface->vram_addr);
+
+    memory_region_set_client_dirty(d->vram, surface->vram_addr,
+                                   surface->pitch * surface->height,
+                                   DIRTY_MEMORY_VGA);
+    memory_region_set_client_dirty(d->vram, surface->vram_addr,
+                                   surface->pitch * surface->height,
+                                   DIRTY_MEMORY_NV2A_TEX);
+
+    surface->download_pending = false;
+    surface->draw_dirty = false;
 }
 
 static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface,
@@ -5829,12 +6034,13 @@ static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface,
 void pgraph_process_pending_downloads(NV2AState *d)
 {
     SurfaceBinding *surface;
+
     QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
-        phraph_queue_download_surface_data(d, surface, false);
+        pgraph_start_download_surface_data(d, surface, false);
     }
 
     QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
-        pgraph_download_surface_data(d, surface, false);
+        pgraph_finish_download_surface_data(d, surface, false);
     }
 
     qatomic_set(&d->pgraph.downloads_pending, false);
@@ -5845,7 +6051,11 @@ void pgraph_download_dirty_surfaces(NV2AState *d)
 {
     SurfaceBinding *surface;
     QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
-        pgraph_download_surface_data_if_dirty(d, surface);
+        pgraph_start_download_surface_data_if_dirty(d, surface);
+    }
+
+    QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
+        pgraph_finish_download_surface_data_if_dirty(d, surface);
     }
 
     qatomic_set(&d->pgraph.download_dirty_surfaces_pending, false);
@@ -6870,7 +7080,16 @@ static void pgraph_bind_textures(NV2AState *d)
                 bool overlapping = !(surface->vram_addr >= tex_vram_end
                                      || texture_vram_offset >= surf_vram_end);
                 if (overlapping) {
-                    pgraph_download_surface_data_if_dirty(d, surface);
+                    pgraph_start_download_surface_data_if_dirty(d, surface);
+                }
+            }
+
+            QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
+                hwaddr surf_vram_end = surface->vram_addr + surface->size - 1;
+                bool overlapping = !(surface->vram_addr >= tex_vram_end
+                                     || texture_vram_offset >= surf_vram_end);
+                if (overlapping) {
+                    pgraph_finish_download_surface_data_if_dirty(d, surface);
                 }
             }
         }
