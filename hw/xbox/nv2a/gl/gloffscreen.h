@@ -48,11 +48,7 @@ GloContext *glo_context_create(void);
 /* Destroy a previously created OpenGL context */
 void glo_context_destroy(GloContext *context);
 
-bool glo_requestpixels(GLenum gl_format, GLenum gl_type, GLuint pbo_id,
-                    unsigned int bytes_per_pixel, unsigned int stride,
-                    unsigned int width, unsigned int height);
-
-void glo_readpixels(GLenum gl_format, GLenum gl_type, GLuint pbo_id,
+void glo_readpixels(GLenum gl_format, GLenum gl_type,
                     unsigned int bytes_per_pixel, unsigned int stride,
                     unsigned int width, unsigned int height, bool vflip,
                     void *data);
