@@ -151,6 +151,8 @@ typedef struct SurfaceBinding {
     size_t size;
 
     GLuint gl_buffer;
+    GLuint pbo_id;
+    size_t pbo_size;
 
     bool cleared;
     int frame_time;
