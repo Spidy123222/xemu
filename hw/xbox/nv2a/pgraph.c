@@ -403,6 +403,7 @@ static void pgraph_surface_invalidate(NV2AState *d, SurfaceBinding *e);
 static void pgraph_surface_evict_old(NV2AState *d);
 static void pgraph_download_surface_data_if_dirty(NV2AState *d, SurfaceBinding *surface);
 static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
+static void phraph_queue_download_surface_data(NV2AState *d, SurfaceBinding *surface, bool force);
 static void pgraph_download_surface_data_to_buffer(NV2AState *d,
                                                    SurfaceBinding *surface,
                                                    bool swizzle, bool flip,
@@ -4944,6 +4945,7 @@ static void pgraph_render_surface_to_texture_slow(
     size_t bufsize = width * height * surface->fmt.bytes_per_pixel;
 
     uint8_t *buf = g_malloc(bufsize);
+    phraph_queue_download_surface_data(d, surface, false);
     pgraph_download_surface_data_to_buffer(d, surface, false, true, false, buf);
 
     width = texture_shape->width;
@@ -5736,19 +5738,12 @@ static void pgraph_download_surface_data_to_buffer(NV2AState *d,
         surface->pbo_size = buffer_size;
     }
 
-    if(glo_requestpixels(
-            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id, 
-            surface->fmt.bytes_per_pixel,
-            pg->surface_scale_factor * surface->pitch,
-            pg->surface_scale_factor * surface->width,
-            pg->surface_scale_factor * surface->height)) {
-        glo_readpixels(
-            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
-            surface->fmt.bytes_per_pixel,
-            pg->surface_scale_factor * surface->pitch,
-            pg->surface_scale_factor * surface->width,
-            pg->surface_scale_factor * surface->height, flip, gl_read_buf);
-    }
+    glo_readpixels(
+        surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id,
+        surface->fmt.bytes_per_pixel,
+        pg->surface_scale_factor * surface->pitch,
+        pg->surface_scale_factor * surface->width,
+        pg->surface_scale_factor * surface->height, flip, gl_read_buf);
 
     /* FIXME: Replace this with a hw accelerated version */
     if (downscale) {
@@ -5774,6 +5769,36 @@ static void pgraph_download_surface_data_to_buffer(NV2AState *d,
     glFramebufferTexture2D(GL_FRAMEBUFFER, surface->fmt.gl_attachment,
                            GL_TEXTURE_2D, 0, 0);
     pgraph_bind_current_surface(d);
+}
+
+static void phraph_queue_download_surface_data(NV2AState *d, SurfaceBinding *surface, 
+    bool force)
+{
+    if(!(surface->download_pending || force)) {
+        return;
+    }
+
+    PGRAPHState *pg = &d->pgraph;
+
+    size_t buffer_size = pg->surface_scale_factor * pg->surface_scale_factor * surface->size;
+    if(surface->pbo_size < buffer_size) {
+        glDeleteBuffers(1, &surface->pbo_id);
+        glGenBuffers(1, &surface->pbo_id);
+        assert(surface->pbo_id);
+
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, surface->pbo_id);
+        glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size, NULL, GL_STREAM_READ);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+        surface->pbo_size = buffer_size;
+    }
+
+    glo_requestpixels(
+            surface->fmt.gl_format, surface->fmt.gl_type, surface->pbo_id, 
+            surface->fmt.bytes_per_pixel,
+            pg->surface_scale_factor * surface->pitch,
+            pg->surface_scale_factor * surface->width,
+            pg->surface_scale_factor * surface->height);
 }
 
 static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface,
@@ -5804,6 +5829,10 @@ static void pgraph_download_surface_data(NV2AState *d, SurfaceBinding *surface,
 void pgraph_process_pending_downloads(NV2AState *d)
 {
     SurfaceBinding *surface;
+    QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
+        phraph_queue_download_surface_data(d, surface, false);
+    }
+
     QTAILQ_FOREACH(surface, &d->pgraph.surfaces, entry) {
         pgraph_download_surface_data(d, surface, false);
     }
