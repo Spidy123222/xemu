@@ -949,7 +949,7 @@ static MString* psh_convert(struct PixelShader *ps)
 
         switch (ps->tex_modes[i]) {
         case PS_TEXTUREMODES_NONE:
-            mstring_append_fmt(vars, "vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_NONE */\n",
+            mstring_append_fmt(vars, "vec4 t%d = vec4(0.0, 0.0, 0.0, 1.0); /* PS_TEXTUREMODES_NONE */\n",
                                i);
             break;
         case PS_TEXTUREMODES_PROJECT2D: {
@@ -984,8 +984,8 @@ static MString* psh_convert(struct PixelShader *ps)
             }
             break;
         case PS_TEXTUREMODES_CUBEMAP:
-            mstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz / pT%d.w);\n",
-                               i, i, i, i);
+            mstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz);\n",
+                               i, i, i);
             break;
         case PS_TEXTUREMODES_PASSTHRU:
             assert(ps->state.border_logical_size[i][0] == 0.0f && "Unexpected border texture on passthru");
@@ -1123,8 +1123,8 @@ static MString* psh_convert(struct PixelShader *ps)
                 i, i-2, i-1, i);
 
             apply_border_adjustment(ps, vars, i, "dotSTR%d");
-            mstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, dotSTR%d);\n",
-                i, i, i);
+            mstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, %s(dotSTR%d%s));\n",
+                i, i, tex_remap, i, ps->state.dim_tex[i] == 2 ? ".xy" : "");
             break;
         case PS_TEXTUREMODES_DOT_STR_CUBE:
             assert(i == 3);
